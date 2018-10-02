@@ -43,7 +43,7 @@ class DisconnectedPulp
       # Check all given repos are valid
       repoids.each do |repoid|
         unless allrepoids.include?(repoid)
-          LOG.error ("%{repoid} isn't listed in the imported manifest, see katello-disconnected list --disabled") % {:repoid => repoid}
+          LOG.error ("%{repoid} isn't listed in the imported manifest, see pulp-planner list --disabled") % {:repoid => repoid}
         end
       end
     else
@@ -70,10 +70,36 @@ class DisconnectedPulp
     mfrepos.each do |repoid|
       repo = active_repos[repoid]
       if repo.content.type = "yum|kickstart"
-        plist = YumRepo::PackageList.new repo.url, manifest.cdn_ca, repo.key, repo.cert, LOG
-        plist.each do |p|
-          package = "#{p.name}-#{p.version}-#{p.release}.#{p.arch}"
-          all_packages.merge!({package => p.size})
+        @url = repo.url
+        @ca_cert = manifest.cdn_ca
+        @key = repo.key
+        @cert = repo.cert
+  
+        @url_digest = Digest::MD5.hexdigest(@url)
+        @repomd_file = File.join(@url_digest, 'repomd.xml')
+  
+        LOG.debug "Verifying repomd.xml exists at: #{@url}"
+  
+        uri = URI.parse("#{@url}/repodata/repomd.xml")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.ca_file = @ca_cert
+        http.cert = OpenSSL::X509::Certificate.new(@cert)
+        http.key = OpenSSL::PKey::RSA.new(@key)
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+  
+        f = Net::HTTP::Get.new(uri.request_uri)
+        response = http.request(f)
+        LOG.debug "Verification Response: #{response.code}"
+        if response.code == '200'
+          plist = YumRepo::PackageList.new @url, @ca_cert, @key, @cert, LOG
+          plist.each do |p|
+            package = "#{p.name}-#{p.version}-#{p.release}.#{p.arch}"
+            all_packages.merge!({package => p.size})
+          end
+        else
+          LOG.info "Skipping #{@url}, as it is no longer present"
+          next
         end
       else
         LOG.info "#{repoid} is not a yum repo; ignoring"
@@ -133,6 +159,7 @@ module YumRepo
 
       f = Net::HTTP::Get.new(uri.request_uri)
       response = http.request(f)
+      LOG.debug "HTTP Response: #{response.code}"
 
       @repomd = Nokogiri::XML(response.body)
     end
