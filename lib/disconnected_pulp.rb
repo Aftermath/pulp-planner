@@ -97,9 +97,15 @@ class DisconnectedPulp
             package = "#{p.name}-#{p.version}-#{p.release}.#{p.arch}"
             all_packages.merge!({package => p.size})
           end
-        else
-          LOG.info "Skipping #{@url}, as it is no longer present"
+        elsif response.code == '403'
+          LOG.error "Access denied to: #{@url}"
           next
+        elsif repsonse.code == '404'
+          LOG.error " HTTP Response 404 to: #{@url}"
+          next
+        else
+          LOG.fatal "Unknown error"
+          exit
         end
       else
         LOG.info "#{repoid} is not a yum repo; ignoring"
