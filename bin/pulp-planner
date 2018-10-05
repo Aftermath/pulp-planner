@@ -36,13 +36,6 @@ module Rails; end
 CONFIG_DIR = File.expand_path "~/.#{APP_NAME}"
 CONFIG = YAML::load_file(CONFIG_DIR + "/config.yml") rescue {}
 
-begin
-  require 'newt'
-  NEWT_PRESENT=true
-rescue LoadError
-  NEWT_PRESENT=false
-end
-
 DEFAULT_CDNURL = 'https://cdn.redhat.com'
 DEFAULT_CDNCA='/etc/rhsm/ca/redhat-uep.pem'
 
@@ -212,63 +205,6 @@ class ActiveManifest
 
   def print_info
     manifest.print_info
-  end
-end
-
-# Newt mode is not working and it is unsupported (ruby binding is not complete and
-# we are not able to read values from the tree unfortunately).
-def newt_select active_manifest
-  if ! NEWT_PRESENT
-    abort"Ruby-newt library not available on this system, use enable/disable\nor edit manually repos.conf."
-  end
-  Newt::Screen.new
-  at_exit do
-    Newt::Screen.finish
-  end
-
-  product_index = 0
-  repo_index = 1000
-  flag = 0
-  checktree = Newt::CheckboxTree.new(-1, -1, 20, Newt::FLAG_SCROLL)
-  active_manifest.entitlements.each_value do |entitlement|
-    entitlement.provided_products.each do |product|
-      product.content.each_value do |content|
-        checktree.add(content.name, 0, 0, Newt::ARG_APPEND)
-        content.repositories.each do |repo|
-          if repo.enabled
-            flag = Newt::FLAG_SELECTED
-          else
-            flag = 0
-          end
-          checktree.add(repo.repoid, 0, flag, product_index, Newt::ARG_APPEND)
-          repo_index += 1
-        end
-        product_index += 1
-      end
-    end
-  end
-
-  button_save_exit = Newt::Button.new(-1, -1, "Save and Exit")
-  button_exit = Newt::Button.new(-1, -1, "Exit")
-
-  grid_buttons = Newt::Grid.new(2, 1)
-  grid_buttons.set_field(0, 0, Newt::GRID_COMPONENT, button_save_exit, 0, 0, 0, 0, 0, 0)
-  grid_buttons.set_field(1, 0, Newt::GRID_COMPONENT, button_exit, 0, 0, 0, 0, 0, 0)
-
-  grid_tree = Newt::Grid.new(1, 2)
-  grid_tree.set_field(0, 0, Newt::GRID_COMPONENT, checktree, 0, 0, 0, 1, Newt::ANCHOR_RIGHT, 0)
-  grid_tree.set_field(0, 1, Newt::GRID_SUBGRID, grid_buttons, 0, 0, 0, 0, 0, 0)
-
-  grid_tree.wrapped_window("Katello Disconnected Repository Selection")
-
-  form = Newt::Form.new
-  form.add(checktree, button_save_exit, button_exit)
-  answer = form.run()
-  Newt::Screen.finish
-
-  if answer == button_save_exit
-    # ruby-newt binding is missing some important functions
-    puts "SAVING NOT YET IMPLEMENTED! Please manually edit the configuration."
   end
 end
 
