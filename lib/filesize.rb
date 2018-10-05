@@ -13,18 +13,21 @@ class Filesize
 
   # Set of rules describing file sizes according to SI units.
   SI = {
-    :regexp => /^([\d,.]+)?\s?([kmgtpezy]?)b$/i,
+    :regexp => /^([\d,.]+)?[[:space:]]?([kmgtpezy]?)b?$/i,
     :multiplier => 1000,
     :prefixes => TYPE_PREFIXES[:SI],
     :presuffix => '' # deprecated
   }
   # Set of rules describing file sizes according to binary units.
   BINARY = {
-    :regexp => /^([\d,.]+)?\s?(?:([kmgtpezy])i)?b$/i,
+    :regexp => /^([\d,.]+)?[[:space:]]?(?:([kmgtpezy])i)?b?$/i,
     :multiplier => 1024,
     :prefixes => TYPE_PREFIXES[:BINARY],
     :presuffix => 'i' # deprecated
   }
+
+  # Set default precision
+  PRECISION = 2
 
   # @param [Number] size A file size, in bytes.
   # @param [SI, BINARY] type Which type to use for conversions.
@@ -61,8 +64,10 @@ class Filesize
   # @param (see #to_f)
   # @return [String] Same as {#to_f}, but as a string, with the unit appended.
   # @see #to_f
-  def to_s(unit = 'B')
-    "%.2f %s" % [to(unit).to_f.to_s, unit]
+  def to_s(unit = 'B', args = {})
+    precision = args[:precision] || PRECISION
+    
+    "%.#{precision}f %s" % [to(unit).to_f.to_s, unit]
   end
 
   # Same as {#to_s} but with an automatic determination of the most
@@ -70,7 +75,7 @@ class Filesize
   #
   # @return [String]
   # @see #to_s
-  def pretty
+  def pretty(args = {})
     size = @bytes
     if size < @type[:multiplier]
       unit = "B"
@@ -81,7 +86,7 @@ class Filesize
       unit = @type[:prefixes][pos-1] + "B"
     end
 
-    to_s(unit)
+    to_s(unit, args)
   end
 
   # @return [Filesize]
@@ -132,7 +137,7 @@ class Filesize
       size   = parts[:size]
       type   = parts[:type]
 
-      raise ArgumentError, "Unparseable filesize" unless type
+      raise ArgumentError, "Unparseable filesize: #{arg}" unless type
 
       offset = (type[:prefixes].map { |s| s[0].chr.downcase }.index(prefix.downcase) || -1) + 1
 
