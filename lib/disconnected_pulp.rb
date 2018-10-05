@@ -111,7 +111,7 @@ class DisconnectedPulp
         LOG.info "#{repoid} is not a yum repo; ignoring"
       end
     end
-    puts Filesize.from("#{all_packages.to_a.flatten.inject{|sum, n| sum.to_i + n.to_i }} B").pretty
+    puts Filesize.new("#{all_packages.to_a.flatten.inject{|sum, n| sum.to_i + n.to_i }}", Filesize::SI).pretty
   end
 
 private
