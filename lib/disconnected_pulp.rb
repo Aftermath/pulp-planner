@@ -100,11 +100,7 @@ class DisconnectedPulp
         elsif response.code == '403'
           LOG.error "Access denied to: #{@url}"
           next
-<<<<<<< HEAD
         elsif response.code == '404'
-=======
-        elsif respsonse.code == '404'
->>>>>>> 92516de7451f5d8cacdd7f6cbf7d94658de1aa14
           LOG.error " HTTP Response 404 to: #{@url}"
           next
         else
